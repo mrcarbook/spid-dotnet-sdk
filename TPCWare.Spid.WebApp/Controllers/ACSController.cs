@@ -9,6 +9,7 @@ using System.Web;
 using System.Web.Mvc;
 using System.Xml;
 using TPCWare.Spid.Sdk;
+using TPCWare.Spid.Sdk.Schema;
 using TPCWare.Spid.WebApp.Models;
 
 namespace TPCWare.Spid.WebApp.Controllers
@@ -70,6 +71,8 @@ namespace TPCWare.Spid.WebApp.Controllers
 
                     AppUser appUser = new AppUser();
 
+                    SPIDMetadata spidMetadataUser = new SPIDMetadata();
+
                     using (StringReader sr = new StringReader(base64DecodedASCII))
                     {
                         using (XmlReader reader = XmlReader.Create(sr))
@@ -84,6 +87,7 @@ namespace TPCWare.Spid.WebApp.Controllers
                             token = (Saml2SecurityToken)coll.ReadToken(tempToken);
 
                             spidUserInfo.Add("Esito", "true");
+                            
 
                             foreach (var item in token.Assertion.Statements)
                             {
@@ -95,7 +99,7 @@ namespace TPCWare.Spid.WebApp.Controllers
                                     {
                                         if (attr.Name.ToLower() == "fiscalnumber" && !String.IsNullOrEmpty(attr.Values.First()))
                                         {
-
+                                            spidMetadataUser.FiscalNumber = attr.Values.First().Split('-')[1];
                                             spidUserInfo.Add(attr.Name, attr.Values.First().Split('-')[1]);
                                         }
                                         if (attr.Name.ToLower() == "ivaCode" && !String.IsNullOrEmpty(attr.Values.First()))
@@ -103,14 +107,27 @@ namespace TPCWare.Spid.WebApp.Controllers
                                             spidUserInfo.Add(attr.Name, attr.Values.First().Split('-')[1]);
                                         }
 
-                                        if (attr.Name.ToLower() != "fiscalnumber" && attr.Name.ToLower() != "ivaCode" && !String.IsNullOrEmpty(attr.Values.First()))
-                                            spidUserInfo.Add(attr.Name, attr.Values.First());
-
                                         if (attr.Name.ToLower() == "name" && !String.IsNullOrEmpty(attr.Values.First()))
+                                        {
                                             appUser.Name = attr.Values.First();
+                                            spidMetadataUser.Name = attr.Values.First();
+                                        }
 
                                         if (attr.Name.ToLower() == "familyname" && !String.IsNullOrEmpty(attr.Values.First()))
+                                        {
                                             appUser.Surname = attr.Values.First();
+
+                                            spidMetadataUser.FamilyName = attr.Values.First();
+                                        }
+
+                                        if (attr.Name.ToLower() != "fiscalnumber" && attr.Name.ToLower() != "ivaCode" && !String.IsNullOrEmpty(attr.Values.First()))
+                                        {
+                                            if(attr.Name.ToLower()== "email")
+                                                spidMetadataUser.Email = attr.Values.First();
+
+                                            spidUserInfo.Add(attr.Name, attr.Values.First());
+                                        }
+                                        
                                     }
 
                                 }
@@ -120,8 +137,21 @@ namespace TPCWare.Spid.WebApp.Controllers
                
                         }
 
+                        // necessario per il checkSPID
+                        System.Web.HttpContext.Current.Application.Lock();
+
+                        var users = (List<SPIDMetadata>)System.Web.HttpContext.Current.Application["Users"];
+
+                        users.Add(spidMetadataUser);
+
+                        System.Web.HttpContext.Current.Application["Users"] = users;
+
+                        System.Web.HttpContext.Current.Application.UnLock();
+
+                        // necessario per visualizzare il nome dell'utente nell'applicazione
                         Session.Add("AppUser", appUser);
 
+                        //necessario per mostrare i dati ricevuti da SPID
                         ViewData["UserInfo"] = spidUserInfo;
 
                         HttpCookie requestCookie = new HttpCookie("SPID_AUTHENTICATION");
