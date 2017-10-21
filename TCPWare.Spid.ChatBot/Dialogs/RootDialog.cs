@@ -129,7 +129,7 @@ namespace TCPWare.Spid.ChatBot.Dialogs
                             {
                                 Title = "TIM",
                                 Type = ActionTypes.OpenUrl,
-                                   Value = $"https://tpcware.azurewebsites.net/home/SpidRequest?idRequest=tim_id"
+                                   Value = $"{UrlSpid}/home/SpidRequest?idRequest=tim_id"
                             },
                                 new CardAction()
                             {
